@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "tsx node_modules/tape/bin/tape tests/**/*.test.ts",
+    "test": "npx tsx node_modules/tape/bin/tape tests/**/*.test.ts",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
