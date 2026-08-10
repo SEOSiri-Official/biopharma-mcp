@@ -63,7 +63,7 @@ const PII_PATTERNS = {
 
 export function redactPatientPii<T>(data: T): T {
   if (typeof data === 'string') {
-    let sanitized = data;
+    let sanitized: string = data;
     sanitized = sanitized.replace(PII_PATTERNS.ssn, '[REDACTED_SSN]');
     sanitized = sanitized.replace(PII_PATTERNS.email, '[REDACTED_EMAIL]');
     sanitized = sanitized.replace(PII_PATTERNS.dob, '[REDACTED_DOB]');
