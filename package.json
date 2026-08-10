@@ -1,0 +1,53 @@
+{
+  "name": "@seosiri/biopharma-mcp",
+  "version": "1.0.0",
+  "description": "Enterprise-grade MCP server for Biopharma software infrastructure, FDA 21 CFR Part 11 audit logging, CDISC SDTM exports, 4PL curves, and HIPAA PII redaction.",
+  "main": "dist/index.js",
+  "type": "module",
+  "bin": {
+    "seosiri-biopharma-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "node --loader ts-node/esm node_modules/tape/bin/tape tests/**/*.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "model-context-protocol",
+    "mcp",
+    "biopharma",
+    "cdisc",
+    "sdtm",
+    "fda-21-cfr-part-11",
+    "4pl-curve",
+    "hipaa",
+    "seosiri"
+  ],
+  "author": "SEOSiri-Official <info@seosiri.com> (https://seosiri.com)",
+  "license": "MIT",
+  "homepage": "https://www.seosiri.com/2026/08/biopharma-mcp.html",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SEOSiri-Official/biopharma-mcp.git"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.5",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.11.24",
+    "@types/pg": "^8.11.2",
+    "tape": "^5.7.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
