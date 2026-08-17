@@ -1,5 +1,4 @@
-// worker.js - SEOSiri Biopharma Edge API Gateway & Scoped Key Validator
-
+// worker.js - SEOSiri Biopharma Edge Gateway (Supports 5-part and 6-part Scoped Keys)
 const SEOSIRI_LICENSING = {
   payoneer_email: "badhan_pbn@yahoo.com",
   corporate_email: "info@seosiri.com",
@@ -30,14 +29,13 @@ async function validateAndIdentifyUserKey(apiKey, masterSecret) {
   }
 
   const parts = apiKey.split("_");
-
   let tier, country, userId, scope, expiresAtStr, providedSignature;
 
-  // Handle 6-part Scoped Key: TIER_COUNTRY_USER_SCOPE_EXPIRES_SIG
+  // 6-Part Key: TIER_COUNTRY_USER_SCOPE_EXPIRES_SIG
   if (parts.length === 6) {
     [tier, country, userId, scope, expiresAtStr, providedSignature] = parts;
-  } 
-  // Handle 5-part Legacy Key: TIER_COUNTRY_USER_EXPIRES_SIG
+  }
+  // 5-Part Key: TIER_COUNTRY_USER_EXPIRES_SIG
   else if (parts.length === 5) {
     [tier, country, userId, expiresAtStr, providedSignature] = parts;
     scope = "ALL";
@@ -49,18 +47,15 @@ async function validateAndIdentifyUserKey(apiKey, masterSecret) {
     ? `${tier}_${country}_${userId}_${scope}_${expiresAtStr}`
     : `${tier}_${country}_${userId}_${expiresAtStr}`;
 
-  // Verify HMAC-SHA256 signature
   const expectedSignature = await computeHmacSignature(payload, masterSecret);
   if (providedSignature.toLowerCase() !== expectedSignature.toLowerCase()) {
     return { valid: false, reason: "INVALID_CRYPTOGRAPHIC_SIGNATURE", tier: "FREE", maxRequestsPerMin: 30 };
   }
 
-  // Check Scope (Must be BIOPHARMA or ALL)
   if (scope !== "BIOPHARMA" && scope !== "ALL") {
     return { valid: false, reason: "UNAUTHORIZED_SERVER_SCOPE", tier: "FREE", maxRequestsPerMin: 0 };
   }
 
-  // Check Expiration
   const nowUnix = Math.floor(Date.now() / 1000);
   const expiresAt = parseInt(expiresAtStr, 10);
   if (!isNaN(expiresAt) && nowUnix > expiresAt) {
@@ -106,7 +101,6 @@ export default {
     const apiKey = request.headers.get("x-seosiri-key") || "FREE_TIER";
     const masterSecret = env.MASTER_SECRET || "seosiri_master_mcp_secret_key_2026_x99";
 
-    // CORS Preflight
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
@@ -118,7 +112,6 @@ export default {
       });
     }
 
-    // Validate Scoped Key
     const userInfo = await validateAndIdentifyUserKey(apiKey, masterSecret);
     if (!userInfo.valid) {
       return new Response(JSON.stringify({
@@ -131,7 +124,6 @@ export default {
       });
     }
 
-    // Check Rate Limits
     const rateLimit = await checkPerUserRateLimit(clientIp, userInfo);
     if (!rateLimit.allowed) {
       return new Response(JSON.stringify({
@@ -146,7 +138,6 @@ export default {
       });
     }
 
-    // Health Endpoint
     if (url.pathname === "/health") {
       return new Response(JSON.stringify({
         status: "HEALTHY",
@@ -165,7 +156,6 @@ export default {
       });
     }
 
-    // API Endpoint: 4PL Dose-Response Curve Solver
     if (url.pathname === "/api/4pl-curve" && request.method === "POST") {
       try {
         const body = await request.json();
@@ -197,40 +187,6 @@ export default {
       }
     }
 
-    // API Endpoint: Z-Factor High-Throughput Screening
-    if (url.pathname === "/api/z-factor" && request.method === "POST") {
-      try {
-        const body = await request.json();
-        const { positive_controls, negative_controls } = body;
-
-        const calcStats = arr => {
-          const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
-          const variance = arr.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / (arr.length - 1 || 1);
-          return { mean, stdDev: Math.sqrt(variance) };
-        };
-
-        const pos = calcStats(positive_controls);
-        const neg = calcStats(negative_controls);
-        const zFactor = 1 - (3 * (pos.stdDev + neg.stdDev)) / Math.abs(pos.mean - neg.mean);
-
-        return new Response(JSON.stringify({
-          status: "SUCCESS",
-          z_factor: Number(zFactor.toFixed(4)),
-          quality_assessment: zFactor >= 0.5 ? "EXCELLENT_HTS_ASSAY" : "MARGINAL",
-          controls_summary: { pos_mean: pos.mean, neg_mean: neg.mean },
-          user_id: userInfo.user_id,
-          active_tier: userInfo.tier,
-          rate_limit_remaining: rateLimit.remaining
-        }), {
-          status: 200,
-          headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-        });
-      } catch (e) {
-        return new Response(JSON.stringify({ error: "Invalid JSON payload" }), { status: 400 });
-      }
-    }
-
-    // Browser Redirect to Article Guide
     const acceptHeader = request.headers.get("Accept") || "";
     if ((url.pathname === "/" || url.pathname === "") && acceptHeader.includes("text/html")) {
       return Response.redirect("https://www.seosiri.com/2026/08/biopharma-mcp.html", 301);
@@ -239,7 +195,7 @@ export default {
     try {
       return await env.ASSETS.fetch(request);
     } catch (e) {
-      return new Response("SEOSiri Biopharma API Gateway Active", { status: 200 });
+      return new Response("SEOSiri Biopharma API Active", { status: 200 });
     }
   }
 };
