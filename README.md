@@ -103,5 +103,15 @@ SEOSiri provides high-ticket systems architecture, custom biopharma MCP tool eng
 * **Corporate Support Email:** info@seosiri.com
 * **GitHub Sponsors:** Sponsor SEOSiri-Official on GitHub
 
-### License
+#
+## 💼 Commercial Licensing & High-Throughput API Keys
+
+Need more than 30 requests/minute for production?
+- **Free Tier:** 30 req/min (Default, public).
+- **Pro Tier ($299/mo):** 1,000 req/min across all edge gateways with signed API key.
+- **Enterprise ($2,500):** Dedicated Cloudflare Zero Trust VPC, custom MCP tools, and SLA support.
+- **Payment Method:** Payoneer (`badhan_pbn@yahoo.com`) or direct wire.
+- **Developer Portal:** [developers.seosiri.com](https://developers.seosiri.com/) | **Contact Desk:** `info@seosiri.com`
+
+## License
 Distributed under the [MIT License](https://github.com/SEOSiri-Official/biopharma-mcp/blob/main/LICENSE).
