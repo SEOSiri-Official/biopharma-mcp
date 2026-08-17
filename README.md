@@ -1,5 +1,7 @@
 # @seosiri/biopharma-mcp
 
+[![SEOSiri Biopharma MCP Server on Glama](https://glama.ai/mcp/servers/SEOSiri-Official/biopharma-mcp/badges/score.svg)](https://glama.ai/mcp/servers/SEOSiri-Official/biopharma-mcp)
+
 > 📖 **Official Architecture & Documentation:** [SEOSiri Biopharma Technical Guide](https://www.seosiri.com/2026/08/biopharma-mcp.html) | [Developer Portal & Graph Explorer](https://developers.seosiri.com/) | [Central MCP Directory](https://www.seosiri.com/2026/07/seosiri-mcp-servers.html)
 
 An open-source, local-first Model Context Protocol (MCP) server written in TypeScript for **Biopharma Software Infrastructure, FDA 21 CFR Part 11 GxP Audit Trailing, CDISC SDTM/Allotrope Data Exports, 4PL Dose-Response Curve Fitting, and HIPAA PII/PHI Redaction**.
