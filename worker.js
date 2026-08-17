@@ -1,4 +1,4 @@
-// worker.js - SEOSiri Biopharma Edge API Gateway & Per-User Key Validator
+// worker.js - SEOSiri Biopharma Edge API Gateway & Scoped Key Validator
 
 const SEOSIRI_LICENSING = {
   payoneer_email: "badhan_pbn@yahoo.com",
@@ -26,44 +26,65 @@ async function computeHmacSignature(message, masterSecret) {
 
 async function validateAndIdentifyUserKey(apiKey, masterSecret) {
   if (!apiKey || apiKey === "FREE" || apiKey === "FREE_TIER") {
-    return { valid: true, user_id: "ANONYMOUS", tier: "FREE", country: "GLOBAL", maxRequestsPerMin: 30 };
+    return { valid: true, user_id: "ANONYMOUS", tier: "FREE", scope: "ALL", country: "GLOBAL", maxRequestsPerMin: 30 };
   }
 
   const parts = apiKey.split("_");
-  if (parts.length < 5) {
+
+  let tier, country, userId, scope, expiresAtStr, providedSignature;
+
+  // Handle 6-part Scoped Key: TIER_COUNTRY_USER_SCOPE_EXPIRES_SIG
+  if (parts.length === 6) {
+    [tier, country, userId, scope, expiresAtStr, providedSignature] = parts;
+  } 
+  // Handle 5-part Legacy Key: TIER_COUNTRY_USER_EXPIRES_SIG
+  else if (parts.length === 5) {
+    [tier, country, userId, expiresAtStr, providedSignature] = parts;
+    scope = "ALL";
+  } else {
     return { valid: false, reason: "INVALID_KEY_FORMAT", tier: "FREE", maxRequestsPerMin: 30 };
   }
 
-  const [tier, country, userId, expiresAtStr, providedSignature] = parts;
-  const payload = `${tier}_${country}_${userId}_${expiresAtStr}`;
-  
+  const payload = parts.length === 6 
+    ? `${tier}_${country}_${userId}_${scope}_${expiresAtStr}`
+    : `${tier}_${country}_${userId}_${expiresAtStr}`;
+
+  // Verify HMAC-SHA256 signature
   const expectedSignature = await computeHmacSignature(payload, masterSecret);
-  if (providedSignature !== expectedSignature) {
+  if (providedSignature.toLowerCase() !== expectedSignature.toLowerCase()) {
     return { valid: false, reason: "INVALID_CRYPTOGRAPHIC_SIGNATURE", tier: "FREE", maxRequestsPerMin: 30 };
   }
 
+  // Check Scope (Must be BIOPHARMA or ALL)
+  if (scope !== "BIOPHARMA" && scope !== "ALL") {
+    return { valid: false, reason: "UNAUTHORIZED_SERVER_SCOPE", tier: "FREE", maxRequestsPerMin: 0 };
+  }
+
+  // Check Expiration
   const nowUnix = Math.floor(Date.now() / 1000);
   const expiresAt = parseInt(expiresAtStr, 10);
-  if (nowUnix > expiresAt) {
+  if (!isNaN(expiresAt) && nowUnix > expiresAt) {
     return { valid: false, reason: "API_KEY_EXPIRED", tier: "EXPIRED", maxRequestsPerMin: 0 };
   }
 
+  const normalizedTier = tier.toUpperCase();
   const rateLimits = { PRO: 1000, ENTERPRISE: 5000 };
 
   return {
     valid: true,
     user_id: userId,
-    tier: tier,
+    tier: normalizedTier,
+    scope: scope,
     country: country,
-    expires_at_iso: new Date(expiresAt * 1000).toISOString(),
-    maxRequestsPerMin: rateLimits[tier] || 1000
+    expires_at_iso: !isNaN(expiresAt) ? new Date(expiresAt * 1000).toISOString() : "NEVER",
+    maxRequestsPerMin: rateLimits[normalizedTier] || 1000
   };
 }
 
 async function checkPerUserRateLimit(clientIp, userInfo) {
   const now = Date.now();
   const windowMs = 60 * 1000;
-  const trackingKey = userInfo.user_id !== "ANONYMOUS" ? userInfo.user_id : clientIp;
+  const trackingKey = userInfo.user_id !== "ANONYMOUS" ? `${userInfo.user_id}_${userInfo.tier}` : clientIp;
 
   const log = REQUEST_LOGS.get(trackingKey) || [];
   const recentLogs = log.filter(timestamp => now - timestamp < windowMs);
@@ -97,7 +118,7 @@ export default {
       });
     }
 
-    // Key & User Validation
+    // Validate Scoped Key
     const userInfo = await validateAndIdentifyUserKey(apiKey, masterSecret);
     if (!userInfo.valid) {
       return new Response(JSON.stringify({
@@ -110,7 +131,7 @@ export default {
       });
     }
 
-    // Rate Limiting
+    // Check Rate Limits
     const rateLimit = await checkPerUserRateLimit(clientIp, userInfo);
     if (!rateLimit.allowed) {
       return new Response(JSON.stringify({
@@ -118,25 +139,25 @@ export default {
         user_id: userInfo.user_id,
         tier: userInfo.tier,
         message: `Rate limit reached for ${userInfo.user_id} (${userInfo.tier} Tier). Retry in ${rateLimit.resetSeconds} seconds.`,
-        payoneer_email: SEOSIRI_LICENSING.payoneer_email,
-        upgrade_instructions: `Transfer funds to ${SEOSIRI_LICENSING.payoneer_email} on Payoneer to upgrade your quota.`
+        payoneer_email: SEOSIRI_LICENSING.payoneer_email
       }), {
         status: 429,
         headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Retry-After": String(rateLimit.resetSeconds) }
       });
     }
 
-    // Health Check Endpoint
+    // Health Endpoint
     if (url.pathname === "/health") {
       return new Response(JSON.stringify({
         status: "HEALTHY",
         service: "SEOSiri Biopharma MCP Edge API",
         identified_user: userInfo.user_id,
-        tier: userInfo.tier,
+        active_tier: userInfo.tier,
+        scope: userInfo.scope,
         country: userInfo.country,
-        key_expires_at: userInfo.expires_at_iso || "NEVER (FREE)",
+        key_expires_at: userInfo.expires_at_iso,
         rate_limit_remaining: rateLimit.remaining,
-        payoneer_monetization_email: SEOSIRI_LICENSING.payoneer_email,
+        payoneer_email: SEOSIRI_LICENSING.payoneer_email,
         timestamp: new Date().toISOString()
       }), {
         status: 200,
@@ -209,7 +230,7 @@ export default {
       }
     }
 
-    // Default Browser Redirect
+    // Browser Redirect to Article Guide
     const acceptHeader = request.headers.get("Accept") || "";
     if ((url.pathname === "/" || url.pathname === "") && acceptHeader.includes("text/html")) {
       return Response.redirect("https://www.seosiri.com/2026/08/biopharma-mcp.html", 301);
@@ -218,7 +239,7 @@ export default {
     try {
       return await env.ASSETS.fetch(request);
     } catch (e) {
-      return new Response("SEOSiri Biopharma API Active", { status: 200 });
+      return new Response("SEOSiri Biopharma API Gateway Active", { status: 200 });
     }
   }
 };
