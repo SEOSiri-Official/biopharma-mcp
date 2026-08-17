@@ -1,4 +1,4 @@
-// worker.js - SEOSiri Biopharma Edge Gateway (Supports 5-part and 6-part Scoped Keys)
+// worker.js - SEOSiri Biopharma Edge Gateway & Scoped Key Validator
 const SEOSIRI_LICENSING = {
   payoneer_email: "badhan_pbn@yahoo.com",
   corporate_email: "info@seosiri.com",
@@ -8,8 +8,10 @@ const SEOSIRI_LICENSING = {
 const REQUEST_LOGS = new Map();
 
 async function computeHmacSignature(message, masterSecret) {
+  // Sanitize master secret to remove any accidental quotes or whitespace
+  const cleanSecret = (masterSecret || "seosiri_master_mcp_secret_key_2026_x99").trim().replace(/^["']|["']$/g, '');
   const encoder = new TextEncoder();
-  const keyData = encoder.encode(masterSecret);
+  const keyData = encoder.encode(cleanSecret);
   const msgData = encoder.encode(message);
 
   const cryptoKey = await crypto.subtle.importKey(
@@ -31,11 +33,11 @@ async function validateAndIdentifyUserKey(apiKey, masterSecret) {
   const parts = apiKey.split("_");
   let tier, country, userId, scope, expiresAtStr, providedSignature;
 
-  // 6-Part Key: TIER_COUNTRY_USER_SCOPE_EXPIRES_SIG
+  // 6-Part Scoped Key: TIER_COUNTRY_USER_SCOPE_EXPIRES_SIG
   if (parts.length === 6) {
     [tier, country, userId, scope, expiresAtStr, providedSignature] = parts;
   }
-  // 5-Part Key: TIER_COUNTRY_USER_EXPIRES_SIG
+  // 5-Part Legacy Key: TIER_COUNTRY_USER_EXPIRES_SIG
   else if (parts.length === 5) {
     [tier, country, userId, expiresAtStr, providedSignature] = parts;
     scope = "ALL";
