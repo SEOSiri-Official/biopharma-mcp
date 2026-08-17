@@ -1,36 +1,8 @@
 {
-  "$schema": "https://glama.ai/mcp/schema.json",
+  "$schema": "https://glama.ai/mcp/schemas/server.json",
   "name": "biopharma-mcp",
-  "title": "Biopharma Software Infrastructure MCP",
   "description": "Enterprise-grade Model Context Protocol (MCP) server in TypeScript for Biopharma Software Infrastructure, FDA 21 CFR Part 11 GxP Audit Trailing, CDISC SDTM exports, 4PL Dose-Response Curve Fitting, and HIPAA PII Redaction.",
-  "author": {
-    "name": "Momenul Ahmad",
-    "url": "https://github.com/MOBILEPHONE",
-    "organization": "SEOSiri-Official"
-  },
-  "homepage": "https://www.seosiri.com/2026/08/biopharma-mcp.html",
-  "repository": "https://github.com/SEOSiri-Official/biopharma-mcp",
-  "license": "MIT",
-  "keywords": [
-    "model-context-protocol",
-    "mcp",
-    "biopharma",
-    "cdisc",
-    "sdtm",
-    "fda-21-cfr-part-11",
-    "4pl-curve",
-    "hipaa",
-    "seosiri"
-  ],
-  "categories": [
-    "Biology & Medicine",
-    "Data & Analytics",
-    "Developer Tools"
-  ],
-  "runtime": "node",
-  "transport": "stdio",
-  "connections": {
-    "edge_gateway": "https://biopharma.seosiri.com",
-    "portal": "https://developers.seosiri.com"
-  }
+  "maintainers": [
+    "MOBILEPHONE"
+  ]
 }
