@@ -9,6 +9,8 @@ import os
 MASTER_SECRET = os.getenv("MASTER_SECRET", "seosiri_master_mcp_secret_key_2026_x99")
 
 def generate_user_key(user_id: str, tier: str = "PRO", country: str = "US", duration_days: int = 365) -> str:
+    # Replace underscores in user_id to prevent string split corruption
+    user_id = user_id.replace("_", "-").strip()
     tier = tier.upper()
     country = country.upper()
     expires_at = int(time.time()) + (duration_days * 86400)
