@@ -1,6 +1,6 @@
-// worker.js - SEOSiri Biopharma Edge Gateway & Scoped Key Validator
+// worker.js - SEOSiri Biopharma Edge API Gateway & Scoped Key Validator
 const SEOSIRI_LICENSING = {
-  payoneer_email: "badhan_pbn@yahoo.com",
+  billing_contact: "badhan_pbn@yahoo.com",
   corporate_email: "info@seosiri.com",
   portal: "https://developers.seosiri.com"
 };
@@ -8,7 +8,6 @@ const SEOSIRI_LICENSING = {
 const REQUEST_LOGS = new Map();
 
 async function computeHmacSignature(message, masterSecret) {
-  // Sanitize master secret to remove any accidental quotes or whitespace
   const cleanSecret = (masterSecret || "seosiri_master_mcp_secret_key_2026_x99").trim().replace(/^["']|["']$/g, '');
   const encoder = new TextEncoder();
   const keyData = encoder.encode(cleanSecret);
@@ -33,12 +32,9 @@ async function validateAndIdentifyUserKey(apiKey, masterSecret) {
   const parts = apiKey.split("_");
   let tier, country, userId, scope, expiresAtStr, providedSignature;
 
-  // 6-Part Scoped Key: TIER_COUNTRY_USER_SCOPE_EXPIRES_SIG
   if (parts.length === 6) {
     [tier, country, userId, scope, expiresAtStr, providedSignature] = parts;
-  }
-  // 5-Part Legacy Key: TIER_COUNTRY_USER_EXPIRES_SIG
-  else if (parts.length === 5) {
+  } else if (parts.length === 5) {
     [tier, country, userId, expiresAtStr, providedSignature] = parts;
     scope = "ALL";
   } else {
@@ -103,6 +99,7 @@ export default {
     const apiKey = request.headers.get("x-seosiri-key") || "FREE_TIER";
     const masterSecret = env.MASTER_SECRET || "seosiri_master_mcp_secret_key_2026_x99";
 
+    // 1. CORS Preflight
     if (request.method === "OPTIONS") {
       return new Response(null, {
         status: 204,
@@ -114,52 +111,38 @@ export default {
       });
     }
 
-    const userInfo = await validateAndIdentifyUserKey(apiKey, masterSecret);
-    if (!userInfo.valid) {
-      return new Response(JSON.stringify({
-        error: "AUTHENTICATION_FAILED",
-        reason: userInfo.reason,
-        payoneer_contact: SEOSIRI_LICENSING.payoneer_email
-      }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-      });
-    }
-
-    const rateLimit = await checkPerUserRateLimit(clientIp, userInfo);
-    if (!rateLimit.allowed) {
-      return new Response(JSON.stringify({
-        error: "RATE_LIMIT_EXCEEDED",
-        user_id: userInfo.user_id,
-        tier: userInfo.tier,
-        message: `Rate limit reached for ${userInfo.user_id} (${userInfo.tier} Tier). Retry in ${rateLimit.resetSeconds} seconds.`,
-        payoneer_email: SEOSIRI_LICENSING.payoneer_email
-      }), {
-        status: 429,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Retry-After": String(rateLimit.resetSeconds) }
-      });
-    }
-
+    // 2. Health Endpoint (Handles standard HTTP GET cleanly like aeo.seosiri.com)
     if (url.pathname === "/health") {
+      const userInfo = await validateAndIdentifyUserKey(apiKey, masterSecret);
+      const rateLimit = await checkPerUserRateLimit(clientIp, userInfo);
+
       return new Response(JSON.stringify({
         status: "HEALTHY",
-        service: "SEOSiri Biopharma MCP Edge API",
+        service: "SEOSiri Biopharma MCP Edge Gateway",
+        version: "1.0.0",
         identified_user: userInfo.user_id,
-        active_tier: userInfo.tier,
+        tier: userInfo.tier,
         scope: userInfo.scope,
-        country: userInfo.country,
-        key_expires_at: userInfo.expires_at_iso,
         rate_limit_remaining: rateLimit.remaining,
-        payoneer_email: SEOSIRI_LICENSING.payoneer_email,
+        licensing_contact: SEOSIRI_LICENSING.billing_contact,
         timestamp: new Date().toISOString()
       }), {
         status: 200,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*"
+        }
       });
     }
 
+    // 3. API Endpoint: 4PL Dose-Response Curve Solver
     if (url.pathname === "/api/4pl-curve" && request.method === "POST") {
       try {
+        const userInfo = await validateAndIdentifyUserKey(apiKey, masterSecret);
+        if (!userInfo.valid) {
+          return new Response(JSON.stringify({ error: "AUTHENTICATION_FAILED", reason: userInfo.reason }), { status: 401 });
+        }
+
         const body = await request.json();
         const { concentrations, responses } = body;
 
@@ -178,8 +161,7 @@ export default {
           residual_sum_of_squares: Number(rss.toFixed(4)),
           data_points: concentrations.length,
           user_id: userInfo.user_id,
-          active_tier: userInfo.tier,
-          rate_limit_remaining: rateLimit.remaining
+          active_tier: userInfo.tier
         }), {
           status: 200,
           headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
@@ -189,6 +171,7 @@ export default {
       }
     }
 
+    // 4. Default Browser Redirect
     const acceptHeader = request.headers.get("Accept") || "";
     if ((url.pathname === "/" || url.pathname === "") && acceptHeader.includes("text/html")) {
       return Response.redirect("https://www.seosiri.com/2026/08/biopharma-mcp.html", 301);
