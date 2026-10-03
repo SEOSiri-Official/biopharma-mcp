@@ -12,7 +12,6 @@ const REQUEST_LOGS = new Map();
 
 // Combined Tool Registry: Biopharma Infrastructure (10 Tools) + AquaShield FHIR (4 Tools)
 const BIOPHARMA_ECOSYSTEM_TOOLS = [
-  // --- Biopharma Software Infrastructure Tools ---
   {
     name: "solve_4pl_dose_response",
     module: "biopharma-mcp",
@@ -82,7 +81,6 @@ const BIOPHARMA_ECOSYSTEM_TOOLS = [
       required: ["payload_text"]
     }
   },
-  // --- AquaShield Water Surveillance & FHIR Tools ---
   {
     name: "compute_4pl_toxicity",
     module: "aquashield-mcp",
@@ -253,7 +251,6 @@ export default {
     const apiKey = request.headers.get("x-seosiri-key") || "FREE_TIER";
     const masterSecret = env.MASTER_SECRET || "seosiri_master_mcp_secret_key_2026_x99";
 
-    // Dynamic Canonical Resolution (Reflects the exact active gateway origin & path)
     const canonicalOrigin = `${url.protocol}//${url.hostname}`;
     const canonicalUrl = `${canonicalOrigin}${url.pathname}`;
 
@@ -287,7 +284,7 @@ export default {
         upgrade_pricing_url: SEOSIRI_LICENSING.pricing_portal,
         corporate_support: SEOSIRI_LICENSING.corporate_support,
         timestamp: new Date().toISOString()
-      }), {
+      }, null, 2), {
         status: 200,
         headers: {
           "Content-Type": "application/json",
@@ -343,7 +340,7 @@ export default {
                 rate_limit_remaining: rateLimit.remaining,
                 licensing_portal: SEOSIRI_LICENSING.pricing_portal
               }
-            }), {
+            }, null, 2), {
               status: 200,
               headers: {
                 "Content-Type": "application/json",
@@ -393,7 +390,7 @@ export default {
               result: {
                 content: [{ type: "text", text: JSON.stringify(executionResult, null, 2) }]
               }
-            }), {
+            }, null, 2), {
               status: 200,
               headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
             });
@@ -522,18 +519,14 @@ export default {
       return Response.redirect("https://www.seosiri.com/2026/08/biopharma-mcp.html", 301);
     }
 
-    try {
-      return await env.ASSETS.fetch(request);
-    } catch (e) {
-      return new Response(JSON.stringify({
-        service: "SEOSiri Biopharma & Life Sciences Multi-System Edge Gateway",
-        status: "ONLINE",
-        endpoints: ["/health", "/rpc", "/sse", "/api/4pl-curve", "/fhir/extensions/edge-provenance"],
-        licensing_and_pricing: SEOSIRI_LICENSING.pricing_portal
-      }, null, 2), {
-        status: 200,
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-      });
-    }
+    return new Response(JSON.stringify({
+      service: "SEOSiri Biopharma & Life Sciences Multi-System Edge Gateway",
+      status: "ONLINE",
+      endpoints: ["/health", "/rpc", "/sse", "/api/4pl-curve", "/fhir/extensions/edge-provenance"],
+      licensing_and_pricing: SEOSIRI_LICENSING.pricing_portal
+    }, null, 2), {
+      status: 200,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    });
   }
 };
